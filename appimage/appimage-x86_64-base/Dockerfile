@@ -10,6 +10,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
         ca-certificates \
+        ccache \
         cmake \
         curl \
         git \
@@ -201,6 +202,21 @@ FROM openscad-appimage-x86_64-base
 
 WORKDIR /openscad
 
+ARG CCACHE_REMOTE_STORAGE
+ARG CCACHE_REMOTE_ONLY=true
+ARG CCACHE_MAXSIZE=20G
+
+ENV CCACHE_REMOTE_STORAGE="${CCACHE_REMOTE_STORAGE}"
+ENV CCACHE_REMOTE_ONLY="${CCACHE_REMOTE_ONLY}"
+ENV CCACHE_MAXSIZE="${CCACHE_MAXSIZE}"
+ENV PATH="/usr/lib/ccache:${PATH}"
+
+RUN if [ -n "${CCACHE_REMOTE_STORAGE}" ]; then \
+      ccache --set-config=remote_storage="${CCACHE_REMOTE_STORAGE}"; \
+      ccache --set-config=remote_only="${CCACHE_REMOTE_ONLY}"; \
+      ccache --set-config=max_size="${CCACHE_MAXSIZE}"; \
+    fi
+
 ARG OPENSCAD_COMMIT=cfdd775c439094698f1c6e5595b7574f636af4da
 ARG SNAPSHOT=ON
 ARG JOBS=4
@@ -221,6 +237,8 @@ RUN \
 		-DOPENSCAD_COMMIT="$OPENSCAD_COMMIT" \
 		-DCMAKE_INSTALL_PREFIX=/usr \
 		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_C_COMPILER_LAUNCHER=ccache \
+		-DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DUSE_BUILTIN_OPENCSG=ON \
     -DMANIFOLD_PYBIND=OFF \
     -DMANIFOLD_TEST=OFF \

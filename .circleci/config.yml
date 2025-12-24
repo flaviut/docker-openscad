@@ -7,10 +7,54 @@ jobs:
       docker_layer_caching: true
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - v1-ccache-http-{{ arch }}
       - run:
           name: Build appimage-x86_64-base
           command: |
-            bash -e -c 'source scripts/build.sh; build appimage openscad/appimage-x86_64-base'
+            sudo apt-get update
+            printf '#!/bin/sh\nexit 101\n' | sudo tee /usr/sbin/policy-rc.d > /dev/null
+            sudo chmod 755 /usr/sbin/policy-rc.d
+            sudo apt-get install -y nginx
+            sudo rm -f /usr/sbin/policy-rc.d
+            mkdir -p /home/circleci/project/.ccache-http/ccache
+            mkdir -p /home/circleci/project/.ccache-nginx/{body,proxy,fastcgi,uwsgi,scgi}
+            cat > /home/circleci/project/.ccache-nginx/nginx.conf \<<'EOF'
+            worker_processes 1;
+            pid /home/circleci/project/.ccache-nginx/nginx.pid;
+            error_log /home/circleci/project/.ccache-nginx/error.log info;
+            events {}
+            http {
+              access_log /home/circleci/project/.ccache-nginx/access.log;
+              client_max_body_size 0;
+              client_body_temp_path /home/circleci/project/.ccache-nginx/body;
+              proxy_temp_path /home/circleci/project/.ccache-nginx/proxy;
+              fastcgi_temp_path /home/circleci/project/.ccache-nginx/fastcgi;
+              uwsgi_temp_path /home/circleci/project/.ccache-nginx/uwsgi;
+              scgi_temp_path /home/circleci/project/.ccache-nginx/scgi;
+              server {
+                listen 8080;
+                location /ccache/ {
+                  root /home/circleci/project/.ccache-http;
+                  dav_methods PUT DELETE MKCOL COPY MOVE;
+                  create_full_put_path on;
+                  dav_access user:rw group:rw all:r;
+                }
+              }
+            }
+            EOF
+            nginx -c /home/circleci/project/.ccache-nginx/nginx.conf -p /home/circleci/project/.ccache-nginx \
+              -g "error_log /home/circleci/project/.ccache-nginx/error.log;"
+            bash -e -c 'source scripts/build.sh; build appimage openscad/appimage-x86_64-base \
+              --add-host=host.docker.internal:host-gateway \
+              --build-arg=CCACHE_REMOTE_STORAGE=http://host.docker.internal:8080/ccache \
+              --build-arg=CCACHE_REMOTE_ONLY=true \
+              --build-arg=CCACHE_MAXSIZE=20G'
+      - save_cache:
+          key: v1-ccache-http-{{ arch }}
+          paths:
+            - /home/circleci/project/.ccache-http
 
 workflows:
   build:

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 NO_CACHE="${NO_CACHE:-}"
+COUNT="${COUNT:-0}"
 
 clean () {
 	rm -f ???_build-*.log

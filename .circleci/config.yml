@@ -46,7 +46,7 @@ jobs:
             EOF
             nginx -c /home/circleci/project/.ccache-nginx/nginx.conf -p /home/circleci/project/.ccache-nginx \
               -g "error_log /home/circleci/project/.ccache-nginx/error.log;"
-            bash -e -c 'source scripts/build.sh; build appimage openscad/appimage-x86_64-base \
+            bash -e -c 'JOBS=4 source scripts/build.sh; build appimage openscad/appimage-x86_64-base \
               --add-host=host.docker.internal:host-gateway \
               --build-arg=CCACHE_REMOTE_STORAGE=http://host.docker.internal:8080/ccache \
               --build-arg=CCACHE_REMOTE_ONLY=true \

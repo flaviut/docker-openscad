@@ -18,8 +18,8 @@ build () {
 	OCI=".oci.${TAG//\//-}"
 	COUNT=$(( $COUNT + 1 ))
 	LOG=$(printf "%03d_build-%s.log" "$COUNT" "$NAME")
-	#JOBS=$(( ( $(nproc --all) + 1 ) / 2 ))
-	JOBS=2
+	DEFAULT_JOBS=$(( ( $(nproc --all) + 1 ) / 2 ))
+	JOBS="${JOBS:-$DEFAULT_JOBS}"
 	BUILDX_DRIVER=$(docker buildx inspect --bootstrap 2>/dev/null | awk -F': ' '/^Driver:/ {print $2}')
 	if [ -z "${BUILDX_DRIVER:-}" ]; then
 		BUILDX_DRIVER="unknown"
